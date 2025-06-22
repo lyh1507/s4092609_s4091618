@@ -1,66 +1,71 @@
 import sqlite3
 
-#Database connection and data retrieval for David dashboard
 def create_connection(db_file):
     try:
         return sqlite3.connect(db_file)
     except sqlite3.Error as e:
-        print(f"❌ Error connecting to database: {e}")
-    return None
+        print(f"❌ Database error: {e}")
+        return None
 
-def get_weather_stations():
+def get_queensland_stations():
     conn = create_connection("climate.db")
     if not conn:
         return []
-
+    
     try:
         cursor = conn.cursor()
-        # If you want to filter for Queensland, uncomment the WHERE clause below
         cursor.execute("""
-            SELECT site_id, name, latitude, longitude 
-            FROM weather_station
-            -- WHERE state_id = 4
-            LIMIT 20
+            SELECT name, latitude, longitude 
+            FROM weather_station 
+            WHERE state_id = 4  -- Queensland
+            LIMIT 5
         """)
-        rows = cursor.fetchall()
-        conn.close()
-        return rows
+        return cursor.fetchall()
     except sqlite3.Error as e:
-        print(f"❌ Error fetching station data: {e}")
+        print(f"❌ Query error: {e}")
         return []
+    finally:
+        conn.close()
 
 def get_page_html(form_data):
-    print("About to return David Laid's Urban Planner page...")
-
-    stations = get_weather_stations()
-
-    page_html = """
-    <html>
-    <head><title>David Laid - Climate Planning</title></head>
-    <body>
-        <h2>Welcome David Laid (Brisbane City Council)</h2>
-        <ul>
-            <li> Flood-Risk Map: <a href='#'>View Zones</a></li>
-            <li> Heatwave Impact Heatmap: Updated Weekly</li>
-            <li> GIS API Integration Enabled</li>
-        </ul>
-        <p>Use the panel to simulate infrastructure impact and zoning risks.</p>
-        <hr>
-        <h3>Weather Stations</h3>
-        <ul>
+    stations = get_queensland_stations()
+    
+    return f"""
+    <div class="dashboard-content">
+        <div class="card">
+            <h2>Brisbane Urban Planning</h2>
+            
+            <div class="button-group">
+                <button class="btn action-btn" id="flood-map-btn" data-target="flood-map-container">
+                    View Flood Zones
+                </button>
+                
+                <button class="btn action-btn" onclick="alert('Heatwave analysis started... This would show detailed heat data.');">
+                    Analyze Heatwaves
+                </button>
+            </div>
+            
+            <!-- Flood Map Container -->
+            <div id="flood-map-container" class="tool-container" style="display:none;">
+                <h3>Flood Risk Map</h3>
+                <img src="/flood-map.png" alt="Brisbane Flood Zones" class="map-img">
+                <div class="map-legend">
+                    <div class="legend-item high-risk">High Risk</div>
+                    <div class="legend-item medium-risk">Medium Risk</div>
+                    <div class="legend-item low-risk">Low Risk</div>
+                </div>
+            </div>
+            
+            <!-- Weather Stations -->
+            <div class="data-section">
+                <h3>Queensland Weather Stations</h3>
+                <ul class="station-list">
+                    {"".join(
+                        f'<li><strong>{name}</strong> (Lat: {lat}, Long: {lon})</li>'
+                        for name, lat, lon in stations
+                    ) if stations else "<li class='no-data'>No station data available</li>"}
+                </ul>
+            </div>
+        </div>
+    </div>
     """
-
-    if stations:
-        for site_id, name, lat, long in stations:
-            page_html += f"<li>{name} (Lat: {lat}, Long: {long})</li>"
-    else:
-        page_html += "<li>Site ID: 3003 | Name: BROOME AIRPORT | Latitude: -17.9475 | Longitude: 122.2352 | Value1: 1 | Value2: 3</li>"
-        page_html += "<li>Site ID: 3032 | Name: DERBY AERO | Latitude: -17.3706 | Longitude: 123.6611 | Value1: 1 | Value2: 4</li>"
-
-
-    page_html += """
-        </ul>
-    </body>
-    </html>
-    """
-    return page_html
